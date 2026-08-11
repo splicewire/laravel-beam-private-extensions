@@ -1,0 +1,74 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Splicewire\Beam\Beam;
+use Splicewire\Beam\PrivateExtensions\PrivateExtensions;
+
+/**
+ * `beam_private_extensions` — splicewire-marketplace-build ticket 16: a tenant-authored,
+ * tenant-private frame-remote extension. Exactly the fields the ticket's acceptance checklist
+ * enumerates — `name`, `mount_point`, the raw `bundle_source` verbatim as `bridge.load()` receives
+ * it, `manifest_capabilities` (json array of `@schemastud/frame-remote`'s `CapabilityName` union),
+ * `trust_tier` (always written `untrusted_publisher` by {@see PrivateExtensions}
+ * — no column here makes it tenant-settable), and `active`. No `Listing`/`Seller`/review-workflow
+ * table exists anywhere in this package — that machinery lives in `laravel-beam-market`, which this
+ * package does not and must not require.
+ *
+ * One ACTIVE extension per mount point is enforced twice: at the application layer (a transaction
+ * in {@see PrivateExtensions::register()}) AND, defense in depth,
+ * by a partial unique index here — `mount_point` is unique only among rows where `active = true`, so
+ * an inactive record never blocks a fresh registration into the same slot.
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        $schema = DB::selectOne('select current_schema() as schema')->schema;
+        if ($this->exists($schema, $this->target())) {
+            return;
+        }
+
+        Schema::create($this->target(), function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->string('name');
+            $table->string('mount_point')->index();
+            $table->text('bundle_source');
+            $table->json('manifest_capabilities');
+            $table->string('trust_tier')->default('untrusted_publisher');
+            $table->boolean('active')->default(true);
+            $table->timestamps();
+        });
+
+        // Partial unique index: only one ACTIVE row may occupy a given mount point. Portable across
+        // the two drivers this package's own suite (sqlite) and a real host (pgsql) run on — both
+        // support a WHERE-qualified CREATE UNIQUE INDEX.
+        DB::statement(sprintf(
+            'create unique index %s on %s (mount_point) where active = true',
+            $this->indexName(),
+            $this->target(),
+        ));
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists($this->target());
+    }
+
+    private function target(): string
+    {
+        return Beam::table('private_extensions');
+    }
+
+    private function indexName(): string
+    {
+        return $this->target().'_active_mount_point_unique';
+    }
+
+    private function exists(string $schema, string $table): bool
+    {
+        return DB::selectOne('select 1 from information_schema.tables where table_schema = ? and table_name = ?', [$schema, $table]) !== null;
+    }
+};

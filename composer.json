@@ -1,0 +1,46 @@
+{
+    "name": "splicewire/laravel-beam-private-extensions",
+    "description": "Tenant-private, non-listed frame-remote extension authoring: register/activate/deactivate/delete a PrivateExtension (name, mount-point key, raw bundle source verbatim as bridge.load() receives it, manifest.capabilities constrained to the CapabilityName union, an active boolean) with one active extension per mount point. Trust tier is always untrusted_publisher, never tenant-settable; an uploaded manifest's own tier value is read informational-only. Structurally cannot create a Listing, Seller, or review-workflow record of any kind — this is the one branch of the marketplace build that stays genuinely independent of laravel-beam-market and its siblings.",
+    "keywords": ["laravel", "splicewire", "beam", "frame-remote", "private-extensions"],
+    "license": "MIT",
+    "authors": [{ "name": "Stephen Rushing", "email": "stephen@rushing.dev" }],
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "splicewire/laravel-beam": "*"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^2.0|^3.0",
+        "laravel/pint": "^1.0"
+    },
+    "autoload": { "psr-4": { "Splicewire\\Beam\\PrivateExtensions\\": "src/" } },
+    "autoload-dev": { "psr-4": { "Splicewire\\Beam\\PrivateExtensions\\Tests\\": "tests/" } },
+    "extra": {
+        "branch-alias": { "dev-main": "1.0.x-dev" },
+        "laravel": { "providers": ["Splicewire\\Beam\\PrivateExtensions\\BeamPrivateExtensionsServiceProvider"] },
+        "package-topology": {
+            "because": "This is the one genuinely independent branch of the marketplace build (splicewire-marketplace-build ticket 16) — it must never expand beyond beam-core plus @schemastud/frame-remote's PHP-side counterpart (none exists today, so beam-core alone). Structurally cannot create a Listing, Seller, or review-workflow record.",
+            "mustNotRequire": [
+                "splicewire/laravel-beam-market",
+                "splicewire/laravel-beam-commerce",
+                "splicewire/laravel-beam-licenser",
+                "splicewire/laravel-beam-workflows"
+            ]
+        }
+    },
+    "repositories": [
+        { "type": "path", "url": "../*", "options": { "symlink": true } },
+        { "type": "path", "url": "../../rushing/*", "options": { "symlink": true } },
+        { "type": "path", "url": "../../schemastud/*", "options": { "symlink": true } }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": { "test": "vendor/bin/pest", "pint": "@php -d memory_limit=512M vendor/bin/pint" },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": { "pestphp/pest-plugin": true, "php-http/discovery": true }
+    }
+}
