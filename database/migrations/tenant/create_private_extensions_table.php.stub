@@ -17,6 +17,12 @@ use Splicewire\Beam\PrivateExtensions\PrivateExtensions;
  * table exists anywhere in this package — that machinery lives in `laravel-beam-market`, which this
  * package does not and must not require.
  *
+ * Lives under `tenant/` as a publish-only stub — corrected from an earlier central-only
+ * `loadMigrationsFrom()` classification: this is tenant-authored, tenant-private data (no
+ * `tenant_id` column by design, isolated by schema instead), so central-only was reachable but
+ * wrong from tenant context via Postgres's `,public` search_path fallback — the same failure mode
+ * already fixed once for `compliance_rules`/`knowledge_events`/`concepts`.
+ *
  * One ACTIVE extension per mount point is enforced twice: at the application layer (a transaction
  * in {@see PrivateExtensions::register()}) AND, defense in depth,
  * by a partial unique index here — `mount_point` is unique only among rows where `active = true`, so

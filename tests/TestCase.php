@@ -31,10 +31,11 @@ abstract class TestCase extends Orchestra
         $c->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
         $c->set('database.default', 'testing');
         $c->set('database.connections.testing', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
-        // Package migrations lean on Postgres-only current-schema guards (tenant-safe, mirroring
-        // laravel-beam-bookmarks' convention) — the standalone suite hand-builds the schema below on
-        // sqlite instead, including the same partial unique index the real migration ships.
-        $c->set('beam.private-extensions.register_migrations', false);
+        // The real migration (tenant/, publish-only) leans on Postgres-only current-schema guards
+        // (tenant-safe, mirroring laravel-beam-bookmarks' convention) — the standalone suite
+        // hand-builds the schema below on sqlite instead, including the same partial unique index
+        // the real migration ships. Publish-only migrations never auto-load, so no toggle is needed
+        // to keep this package's own harness from double-creating the table.
     }
 
     protected function createFixtureSchema(): void
