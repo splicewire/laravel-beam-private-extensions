@@ -5,6 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Splicewire\Beam\Facades\Beam;
+use Splicewire\Beam\Schema\ConvergentTable;
 use Splicewire\Beam\PrivateExtensions\PrivateExtensions;
 
 /**
@@ -33,26 +34,30 @@ return new class extends Migration
     public function up(): void
     {
         $schema = DB::selectOne('select current_schema() as schema')->schema;
-        if ($this->exists($schema, $this->target())) {
-            return;
-        }
 
-        Schema::create($this->target(), function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->string('name');
-            $table->string('mount_point')->index();
-            $table->text('bundle_source');
-            $table->json('manifest_capabilities');
-            $table->string('trust_tier')->default('untrusted_publisher');
-            $table->boolean('active')->default(true);
-            $table->timestamps();
-        });
+        ConvergentTable::named($this->target())
+            // The current-schema predicate survives the conversion: Schema::hasTable() follows the
+            // tenant search_path, so it reports a CENTRAL table as present in a tenant schema.
+            ->existsUsing(fn (string $table): bool => $this->exists($schema, $table))
+            ->define(function (Blueprint $table): void {
+                $table->uuid('id')->primary();
+                $table->string('name');
+                $table->string('mount_point')->index();
+                $table->text('bundle_source');
+                $table->json('manifest_capabilities');
+                $table->string('trust_tier')->default('untrusted_publisher');
+                $table->boolean('active')->default(true);
+                $table->timestamps();
+            })
+            ->assert();
 
         // Partial unique index: only one ACTIVE row may occupy a given mount point. Portable across
         // the two drivers this package's own suite (sqlite) and a real host (pgsql) run on — both
         // support a WHERE-qualified CREATE UNIQUE INDEX.
+        // `if not exists` because the convergent guard makes this reachable on a table that already
+        // exists — raw DDL beside the guard is not covered by it (convention: "raw DB::statement").
         DB::statement(sprintf(
-            'create unique index %s on %s (mount_point) where active = true',
+            'create unique index if not exists %s on %s (mount_point) where active = true',
             $this->indexName(),
             $this->target(),
         ));
